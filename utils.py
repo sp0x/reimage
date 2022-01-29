@@ -1,22 +1,22 @@
-import errno
+import datetime
 import os
 import platform
-from PIL import Image, ExifTags
-import datetime
-import pytz
-from shutil import copy2
-import time
-from ffcount import ffcount
-import math
+from typing import Optional
 
-try:
-    from os import scandir
-except ImportError:
-    from scandir import scandir  # use scandir PyPI module on Python < 3.5
+import pytz
+from PIL import ExifTags, Image
 
 
 # Print iterations progress
-def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', print_end="\r", percentage=None):
+def print_progress_bar(iteration,
+                       total,
+                       prefix='',
+                       suffix='',
+                       decimals=1,
+                       length=100,
+                       fill='█',
+                       print_end="\r",
+                       percentage=None):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -39,20 +39,6 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
         print()
 
 
-def create_directory(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-
-def copy_to_dest(source, dst, new_creation_dt: datetime.datetime):
-    copy2(source, dst)
-    timetuple = time.mktime(new_creation_dt.timetuple())
-    os.utime(dst, (timetuple, timetuple))
-
-
 class ProgressStat:
 
     def __init__(self):
@@ -61,33 +47,11 @@ class ProgressStat:
         self._last_progress = 0
 
     def progress(self) -> float:
-        p = min(1, self.processed_count / max(self.to_process_count, 1))
+        p = min(1, int(self.processed_count / max(self.to_process_count, 1)))
         if self._last_progress > p:
             return self._last_progress
         self._last_progress = p
         return p
-
-
-def scantree(path, excluded_path, recursive=True, progress_stat: ProgressStat = None):
-    """Recursively yield DirEntry objects for given directory."""
-    if progress_stat is None:
-        progress_stat = ProgressStat()
-
-    file_count, dir_count = ffcount(path, False)
-    progress_stat.to_process_count += file_count
-
-    with scandir(path) as it:
-        for entry in it:
-            if entry.path == excluded_path:
-                continue
-            if recursive and entry.is_dir(follow_symlinks=False):
-                # file_count, dir_count = ffcount(entry.path, False)
-                # progress_stat.to_process_count += file_count
-                # progress_stat.to_process_count += dir_count * 2
-                yield from scantree(entry.path, excluded_path, recursive, progress_stat)  # see below for Python 2.x
-            else:
-                progress_stat.processed_count += 1
-                yield entry
 
 
 def localize_to_os_timezone(timestamp) -> datetime:
@@ -95,21 +59,21 @@ def localize_to_os_timezone(timestamp) -> datetime:
     return dt.astimezone()
 
 
-def get_earliest_imagefile_time(path) -> int:
-    modified_datetime = modified_time(path)
-    created_datetime = creation_date(path)
-    exif_shutter_datetime = get_exif_shutter_date(path)
+def get_earliest_image_creation_timestamp(path) -> int:
+    modified_datetime = modified_timestamp(path)
+    created_datetime = creation_timestamp(path)
+    exif_shutter_datetime = get_image_shot_on_timestamp(path)
 
     min_fs_datetime = min(modified_datetime, created_datetime)
     min_overall_datetime = min_fs_datetime
     if exif_shutter_datetime != 0:
         min_overall_datetime = min(min_fs_datetime, exif_shutter_datetime)
 
-    return min_overall_datetime
+    return int(min_overall_datetime)
 
 
-def get_exif_shutter_date(path, src_timezone='Asia/Tokyo'):
-    exif_data = get_exif_data(path)
+def get_image_shot_on_timestamp(path, src_timezone='Asia/Tokyo') -> int:
+    exif_data = get_exif_data_from_image(path)
     if exif_data is None or exif_data.date_time_original is None:
         return 0
     # Localize to source timezone and convert to UTC
@@ -126,7 +90,7 @@ class ExifData:
         self.date_time_original = None
 
 
-def get_exif_data(path):
+def get_exif_data_from_image(path) -> Optional[ExifData]:
     img = Image.open(path)
     img_exif = img.getexif()
     if img_exif is None:
@@ -148,7 +112,7 @@ def get_exif_data(path):
     return output
 
 
-def modified_time(path_to_file):
+def modified_timestamp(path_to_file):
     """
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
@@ -161,7 +125,7 @@ def modified_time(path_to_file):
         return stat.st_mtime
 
 
-def creation_date(path_to_file):
+def creation_timestamp(path_to_file):
     """
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
