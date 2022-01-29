@@ -7,6 +7,30 @@ import pytz
 from PIL import ExifTags, Image
 
 
+def get_new_filepath(base_input_path: str, image_path: str, creation_time: datetime, output_path: str) -> str:
+    _, extension = os.path.splitext(image_path)
+    new_filename = f'{creation_time.year}_{creation_time.month}_{creation_time.day}_' \
+                   f'{creation_time.hour}_{creation_time.hour}_{creation_time.minute}_{creation_time.second}' \
+                   f'{extension}'
+    entry_base_path = os.path.dirname(image_path)
+    new_subdirectory = entry_base_path.replace(base_input_path.rstrip(os.sep), '', 1).lstrip(os.sep)
+    return os.path.join(output_path, new_subdirectory, new_filename)
+
+
+def is_processable(entry: os.DirEntry, should_match_extension: str):
+    """
+    Process scandir entries, copying the file if necessary
+    """
+    if not entry.is_file():
+        return False
+
+    _, extension = os.path.splitext(entry.name)
+    if extension.lower() != should_match_extension.lower():
+        return False
+
+    return True
+
+
 # Print iterations progress
 def print_progress_bar(iteration,
                        total,
@@ -47,7 +71,7 @@ class ProgressStat:
         self._last_progress = 0
 
     def progress(self) -> float:
-        p = min(1, int(self.processed_count / max(self.to_process_count, 1)))
+        p = min(1.0, self.processed_count / max(self.to_process_count, 1))
         if self._last_progress > p:
             return self._last_progress
         self._last_progress = p
