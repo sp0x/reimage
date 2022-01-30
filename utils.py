@@ -7,7 +7,7 @@ import pytz
 from PIL import ExifTags, Image
 
 
-def get_new_filepath(base_input_path: str, image_path: str, creation_time: datetime, output_path: str) -> str:
+def get_output_filepath(base_input_path: str, image_path: str, creation_time: datetime, output_path: str) -> str:
     _, extension = os.path.splitext(image_path)
     new_filename = f'{creation_time.year}_{creation_time.month}_{creation_time.day}_' \
                    f'{creation_time.hour}_{creation_time.hour}_{creation_time.minute}_{creation_time.second}' \
@@ -83,10 +83,10 @@ def localize_to_os_timezone(timestamp) -> datetime:
     return dt.astimezone()
 
 
-def get_earliest_image_creation_timestamp(path) -> int:
+def get_earliest_creation(path, timezone_map: dict) -> int:
     modified_datetime = modified_timestamp(path)
     created_datetime = creation_timestamp(path)
-    exif_shutter_datetime = get_image_shot_on_timestamp(path)
+    exif_shutter_datetime = get_image_shot_on_timestamp(path, timezone_map)
 
     min_fs_datetime = min(modified_datetime, created_datetime)
     min_overall_datetime = min_fs_datetime
@@ -96,13 +96,26 @@ def get_earliest_image_creation_timestamp(path) -> int:
     return int(min_overall_datetime)
 
 
-def get_image_shot_on_timestamp(path, src_timezone='Asia/Tokyo') -> int:
+def get_image_shot_on_timestamp(path, timezone_map: dict) -> int:
+    """
+    Gets the UTC timestamp of when a picture was shot.
+    If a device model can't be mapped to a timezone, the current timezone is used.
+
+    :param str path: The path to the image
+    :param dict timezone_map: A map of device model: timezone. For example { 'nikon d5600': 'Asia/Tokyo' }
+    :return: timestamp
+    :rtype: int
+    """
     exif_data = get_exif_data_from_image(path)
     if exif_data is None or exif_data.date_time_original is None:
         return 0
     # Localize to source timezone and convert to UTC
     dt = exif_data.date_time_original
-    dt_with_tz = pytz.timezone(src_timezone).localize(dt)
+    src_timezone = timezone_map[exif_data.model] if exif_data.model in timezone_map else None
+    if src_timezone is not None:
+        dt_with_tz = pytz.timezone(src_timezone).localize(dt)
+    else:
+        dt_with_tz = dt.astimezone()
 
     exif_shutter_datetime = dt_with_tz.astimezone(datetime.timezone.utc)
     return int(exif_shutter_datetime.timestamp())
@@ -112,6 +125,7 @@ class ExifData:
 
     def __init__(self):
         self.date_time_original = None
+        self.model = None
 
 
 def get_exif_data_from_image(path) -> Optional[ExifData]:
@@ -130,6 +144,8 @@ def get_exif_data_from_image(path) -> Optional[ExifData]:
 
         if exif_key == "DateTimeOriginal":
             output.date_time_original = datetime.datetime.strptime(val, date_format)
+        elif exif_key == "Model":
+            output.model = str(val).lower()
 
     img.close()
 
