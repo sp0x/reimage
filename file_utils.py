@@ -2,7 +2,7 @@ import datetime
 import errno
 import os
 import time
-from shutil import copy2
+from shutil import copy2, move
 
 from ffcount import ffcount
 
@@ -24,6 +24,12 @@ def create_directory(path):
 
 def copy_to_dest(source, dst, new_creation_dt: datetime.datetime):
     copy2(source, dst)
+    timetuple = time.mktime(new_creation_dt.timetuple())
+    os.utime(dst, (timetuple, timetuple))
+
+
+def move_to_dest(source, dst, new_creation_dt: datetime.datetime):
+    move(source, dst)
     timetuple = time.mktime(new_creation_dt.timetuple())
     os.utime(dst, (timetuple, timetuple))
 
