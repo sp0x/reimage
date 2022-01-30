@@ -1,4 +1,5 @@
 """
+-*- coding: utf-8 -*-
 This module is a utility to copy image files
 and rename them based on the time they were created or shot.
 """
@@ -8,8 +9,7 @@ import os
 from typing import Optional
 from datetime import datetime, timezone
 
-import file_utils
-import utils
+from image_sort import file_utils, utils
 
 model_timezones = {
     "nikon d5600": "Asia/Tokyo",
@@ -40,14 +40,16 @@ def main():
     """
     Command line utility to reorder pictures based on  when they were created.
     """
-    parser = argparse.ArgumentParser(description="Image file renaming utility.")
-    parser.add_argument('-s', '--source', type=str, help="Source directory")
+    parser = argparse.ArgumentParser(description="Image file organizing utility.")
+    parser.add_argument('-s', '--source', type=str, help="Source directory", required=True)
     parser.add_argument('-d', '--destination', type=str,
                         help="Destination directory. If not specified then an "
                              "`output` directory is created within the source "
                              "directory.")
-    parser.add_argument('-r', '--recursive', type=bool, default=True)
-    parser.add_argument('-x', '--extension', type=str, default='.jpg')
+
+    parser.add_argument('-x', '--extension', type=str, default='.jpg',
+                        help="File extension to use, by default this is .jpg")
+    parser.add_argument('--recursive', action='store_const', const=True, default=False)
     parser.add_argument('--move', action='store_const', const=True, default=False,
                         help='Move instead of copying to output directory')
 

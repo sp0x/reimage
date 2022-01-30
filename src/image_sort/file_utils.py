@@ -6,7 +6,7 @@ from shutil import copy2, move
 
 from ffcount import ffcount
 
-from utils import ProgressStat
+from image_sort.utils import ProgressStat
 
 try:
     from os import scandir
