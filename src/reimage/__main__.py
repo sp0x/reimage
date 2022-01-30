@@ -9,7 +9,7 @@ import os
 from typing import Optional
 from datetime import datetime, timezone
 
-from image_sort import file_utils, utils
+from reimage import file_utils, utils
 
 model_timezones = {
     "nikon d5600": "Asia/Tokyo",
