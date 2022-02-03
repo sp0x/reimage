@@ -22,16 +22,18 @@ def create_directory(path):
             raise
 
 
-def copy_to_dest(source, dst, new_creation_dt: datetime.datetime):
+def copy_to_dest(source, dst, new_creation_dt: datetime.datetime = None):
     copy2(source, dst)
-    timetuple = time.mktime(new_creation_dt.timetuple())
-    os.utime(dst, (timetuple, timetuple))
+    if new_creation_dt is not None:
+        timetuple = time.mktime(new_creation_dt.timetuple())
+        os.utime(dst, (timetuple, timetuple))
 
 
-def move_to_dest(source, dst, new_creation_dt: datetime.datetime):
+def move_to_dest(source, dst, new_creation_dt: datetime.datetime = None):
     move(source, dst)
-    timetuple = time.mktime(new_creation_dt.timetuple())
-    os.utime(dst, (timetuple, timetuple))
+    if new_creation_dt is not None:
+        timetuple = time.mktime(new_creation_dt.timetuple())
+        os.utime(dst, (timetuple, timetuple))
 
 
 def scantree(path, excluded_path, recursive=True, progress_stat: ProgressStat = None):
@@ -39,17 +41,15 @@ def scantree(path, excluded_path, recursive=True, progress_stat: ProgressStat = 
     if progress_stat is None:
         progress_stat = ProgressStat()
 
-    file_count, dir_count = ffcount(path, False)
-    progress_stat.to_process_count += file_count
+    file_count, dir_count = ffcount(path, True)
+    if progress_stat.to_process_count == 0:
+        progress_stat.to_process_count += file_count
 
     with scandir(path) as it:
         for entry in it:
             if entry.path == excluded_path:
                 continue
             if recursive and entry.is_dir(follow_symlinks=False):
-                # file_count, dir_count = ffcount(entry.path, False)
-                # progress_stat.to_process_count += file_count
-                # progress_stat.to_process_count += dir_count * 2
                 yield from scantree(entry.path, excluded_path, recursive, progress_stat)  # see below for Python 2.x
             else:
                 progress_stat.processed_count += 1

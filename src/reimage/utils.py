@@ -3,18 +3,44 @@ import os
 import platform
 from typing import Optional
 
+import PIL
 import pytz
 from PIL import ExifTags, Image
+
+
+def get_output_filepath_misc(base_input_path: str, file_path: str, output_path: str):
+    _, extension = os.path.splitext(file_path)
+    new_filename = os.path.basename(file_path)
+
+    entry_base_path = os.path.dirname(file_path)
+    new_subdirectory = entry_base_path.replace(base_input_path.rstrip(os.sep), '', 1).lstrip(os.sep)
+    return os.path.join(output_path, new_subdirectory, new_filename)
 
 
 def get_output_filepath(base_input_path: str, image_path: str, creation_time: datetime, output_path: str) -> str:
     _, extension = os.path.splitext(image_path)
     new_filename = f'{creation_time.year}_{creation_time.month}_{creation_time.day}_' \
-                   f'{creation_time.hour}_{creation_time.hour}_{creation_time.minute}_{creation_time.second}' \
+                   f'{creation_time.hour}_{creation_time.minute}_{creation_time.second}' \
                    f'{extension}'
     entry_base_path = os.path.dirname(image_path)
     new_subdirectory = entry_base_path.replace(base_input_path.rstrip(os.sep), '', 1).lstrip(os.sep)
-    return os.path.join(output_path, new_subdirectory, new_filename)
+    new_filepath = os.path.join(output_path, new_subdirectory, new_filename)
+    if os.path.exists(new_filepath):
+        new_filepath = get_extra_filename(new_filepath)
+    return new_filepath
+
+
+def get_extra_filename(path: str) -> str:
+    i = 1
+    directory = os.path.dirname(path)
+    filename = os.path.basename(path)
+    name, extension = os.path.splitext(filename)
+    while True:
+        new_filename = name + f"_{i}{extension}"
+        new_path = os.path.join(directory, new_filename)
+        i += 1
+        if not os.path.exists(new_path):
+            return new_path
 
 
 def is_processable(entry: os.DirEntry, should_match_extension: str):
@@ -72,8 +98,8 @@ class ProgressStat:
 
     def progress(self) -> float:
         p = min(1.0, self.processed_count / max(self.to_process_count, 1))
-        if self._last_progress > p:
-            return self._last_progress
+        # if self._last_progress > p:
+        #    return self._last_progress
         self._last_progress = p
         return p
 
@@ -129,27 +155,31 @@ class ExifData:
 
 
 def get_exif_data_from_image(path) -> Optional[ExifData]:
-    img = Image.open(path)
-    img_exif = img.getexif()
-    if img_exif is None:
+    try:
+        img = Image.open(path)
+        img_exif = img.getexif()
+        if img_exif is None:
+            return None
+
+        output = ExifData()
+        date_format = "%Y:%m:%d %H:%M:%S"
+
+        for key, val in img_exif.items():
+            if key not in ExifTags.TAGS:
+                continue
+            exif_key = ExifTags.TAGS[key]
+
+            if exif_key == "DateTimeOriginal":
+                output.date_time_original = datetime.datetime.strptime(val, date_format)
+            elif exif_key == "Model":
+                output.model = str(val).lower()
+
+        img.close()
+
+        return output
+    except PIL.UnidentifiedImageError:
         return None
 
-    output = ExifData()
-    date_format = "%Y:%m:%d %H:%M:%S"
-
-    for key, val in img_exif.items():
-        if key not in ExifTags.TAGS:
-            continue
-        exif_key = ExifTags.TAGS[key]
-
-        if exif_key == "DateTimeOriginal":
-            output.date_time_original = datetime.datetime.strptime(val, date_format)
-        elif exif_key == "Model":
-            output.model = str(val).lower()
-
-    img.close()
-
-    return output
 
 
 def modified_timestamp(path_to_file):
