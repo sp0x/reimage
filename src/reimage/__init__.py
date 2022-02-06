@@ -13,6 +13,7 @@ from reimage.utils import is_processable, get_output_filepath_misc, get_output_f
     get_earliest_creation
 from reimage.file_utils import move_to_dest, copy_to_dest, create_directory, scantree
 
+# Mapping between device models and time zones
 model_timezones = {
     "nikon d5600": "Asia/Tokyo",
 }
@@ -66,7 +67,7 @@ def main():
                              "directory.")
 
     parser.add_argument('-x', '--extension', type=str, default='.jpg',
-                        help="File extension to use, by default this is .jpg")
+                        help="File extension to use, by default this is .jpg. Note that non-matching")
     parser.add_argument('--recursive', action='store_const', const=True, default=False)
     parser.add_argument('--move', action='store_const', const=True, default=False,
                         help='Move instead of copying to output directory')
