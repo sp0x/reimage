@@ -12,3 +12,6 @@ install:
 	python3 -m pip install .
 
 all: build install
+
+publish:
+	twine upload dist/*

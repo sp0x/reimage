@@ -43,14 +43,15 @@ def get_extra_filename(path: str) -> str:
             return new_path
 
 
-def is_processable(entry: os.DirEntry, should_match_extension: str):
+def is_processable(path: str, should_match_extension: str):
     """
     Process scandir entries, copying the file if necessary
     """
-    if not entry.is_file():
+    if not os.path.isfile(path):
         return False
 
-    _, extension = os.path.splitext(entry.name)
+    filename = os.path.basename(path)
+    _, extension = os.path.splitext(filename)
     if extension.lower() != should_match_extension.lower():
         return False
 
@@ -98,8 +99,6 @@ class ProgressStat:
 
     def progress(self) -> float:
         p = min(1.0, self.processed_count / max(self.to_process_count, 1))
-        # if self._last_progress > p:
-        #    return self._last_progress
         self._last_progress = p
         return p
 
@@ -122,7 +121,7 @@ def get_earliest_creation(path, timezone_map: dict) -> int:
     return int(min_overall_datetime)
 
 
-def get_image_shot_on_timestamp(path, timezone_map: dict) -> int:
+def get_image_shot_on_timestamp(path: str, timezone_map: dict) -> int:
     """
     Gets the UTC timestamp of when a picture was shot.
     If a device model can't be mapped to a timezone, the current timezone is used.
@@ -154,7 +153,7 @@ class ExifData:
         self.model = None
 
 
-def get_exif_data_from_image(path) -> Optional[ExifData]:
+def get_exif_data_from_image(path: str) -> Optional[ExifData]:
     try:
         img = Image.open(path)
         img_exif = img.getexif()
@@ -181,8 +180,7 @@ def get_exif_data_from_image(path) -> Optional[ExifData]:
         return None
 
 
-
-def modified_timestamp(path_to_file):
+def modified_timestamp(path_to_file: str) -> float:
     """
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
@@ -195,14 +193,14 @@ def modified_timestamp(path_to_file):
         return stat.st_mtime
 
 
-def creation_timestamp(path_to_file):
+def creation_timestamp(path_to_file: str) -> int:
     """
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
     See http://stackoverflow.com/a/39501288/1709587 for explanation.
     """
     if platform.system() == 'Windows':
-        return os.path.getctime(path_to_file)
+        return int(os.path.getctime(path_to_file))
     else:
         stat = os.stat(path_to_file)
         try:
@@ -210,4 +208,4 @@ def creation_timestamp(path_to_file):
         except AttributeError:
             # We're probably on Linux. No easy way to get creation dates here,
             # so we'll settle for when its content was last modified.
-            return stat.st_mtime
+            return int(stat.st_mtime)
